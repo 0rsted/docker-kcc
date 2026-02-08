@@ -1,44 +1,55 @@
 # syntax=docker/dockerfile:1
 
 FROM ghcr.io/linuxserver/unrar:latest AS unrar
-FROM ghcr.io/linuxserver/baseimage-selkies:alpine322
+FROM ghcr.io/linuxserver/baseimage-selkies:alpine323
 
 ENV APPDIR="/app"
 ENV HARDEN_DESKTOP=true
 ENV HARDEN_OPENBOX=true
-ENV TITLE='Kindle Comic Converter'
+ENV TITLE="Kindle Comic Converter"
+# we have no use for GPU acceleration for the UI
 ENV DISABLE_ZINK=true
 ENV DISABLE_DRI3=true
 ENV NO_GAMEPAD=true
 ENV NO_DECOR=true
-ENV SELKIES_UI_SHOW_SIDEBAR=false
+# selkies settings
+ENV SELKIES_UI_TITLE=${TITLE}
+ENV SELKIES_UI_SHOW_LOGO=false
 ENV SELKIES_UI_SHOW_CORE_BUTTONS=false
 ENV SELKIES_AUDIO_ENABLED=false
 ENV SELKIES_MICROPHONE_ENABLED=false
 ENV SELKIES_GAMEPAD_ENABLED=false
 ENV SELKIES_ENABLE_SHARING=false
+ENV SELKIES_ENABLE_BINARY_CLIPBOARD=false
+# screen resolution
 ENV SELKIES_IS_MANUAL_RESOLUTION_MODE=true
-ENV SELKIES_MANUAL_HEIGHT=1080
-ENV SELKIES_MANUAL_WIDTH=1920
-ENV MAX_RESOLUTION=1920x1080
+ENV SELKIES_MANUAL_HEIGHT=1024
+ENV SELKIES_MANUAL_WIDTH=1280
+# since up/download is making fun of me, there's no use for the sidebar
+ENV SELKIES_UI_SHOW_SIDEBAR=false
+
+LABEL org.opencontainers.image.description="Docker container for KCC, using lsio baseimage-selkies-alpine"
+LABEL org.opencontainers.image.title="${TITLE}"
+
 
 WORKDIR ${APPDIR}
 
 RUN echo "**** install packages ****" && \
+  # pyside6 is currently only available on edge \
   apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing \
-    unzip \
     7zip \
-    libpng \
-    libjpeg \
-    git \
     curl \
-    python3 \
-    pyside6 \
-    py3-pyside6 \
+    git \
+    libjpeg \
+    libpng \
     py3-pip \
-    py3-pymupdf-pyc && \
+    py3-pymupdf-pyc \
+    py3-pyside6 \
+    pyside6 \
+    python3 \
+    unzip &&\
   \
-  echo "**** install kcc ****" && \
+  echo "**** download kcc ****" && \
   cd ${APPDIR} && \
   curl -s https://api.github.com/repos/ciromattia/kcc/releases/latest \
     | grep  -m 1 '"url":' | cut -d : -f 2,3 | tr -d \" | sed 's/,*$//g' \
@@ -55,10 +66,11 @@ RUN echo "**** install packages ****" && \
   python -m pip install raven && \
   python -m pip install -r requirements-docker.txt && \
   \
-  echo "**** install kindlegen ****" && \
+  echo "**** download kindlegen ****" && \
   curl https://archive.org/download/kindlegen_linux_2_6_i386_v2_9/kindlegen_linux_2.6_i386_v2_9.tar.gz -L -o "${APPDIR}/kindlegen.tar.gz" && \
   tar -zxf kindlegen.tar.gz kindlegen && \
   chmod a+x kindlegen && \
+  # we'll just link it, instead of copying/moving
   ln kindlegen /usr/local/bin/kindlegen && \
   \
   echo "**** cleanup ****" && \
