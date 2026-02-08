@@ -2,9 +2,9 @@ name: Docker
 
 on:
   push:
-    branches:
+    tags:
       # this should run whenever there's a new tag on the master branch
-      - "master/v*.*.*"
+      - "v*.*.*"
 
 env:
   REGISTRY: ghcr.io
